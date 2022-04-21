@@ -10,7 +10,8 @@ re_C_comments = re.compile(r"(\"[^\"]*\"(?!\\))|(//[^\n]*$|/(?!\\)\*[\s\S]*?\*(?
 re_two_lf = re.compile("\n\n")
 re_three_lf = re.compile("\n\n\n")
 re_C_typedef_function_pointer = re.compile(
-    r"^typedef\s+(\bunsigned\b|\bsigned\b|\bstruct\b|)(\s+|)\w+(\s+|)(\*+|)(\s+|)\((\s+|)\*(\s+|)\w+(\s+|)\)(\s+|)\(((\s+|)(\bunsigned\b|\bsigned\b|\bstruct\b|)(\s|)+\w+(\s+|)(\*+|)(\s+|)\w+(\s+|)(,|))+\);"
+    r"^typedef\s+(\bunsigned\b|\bsigned\b|\bstruct\b|)(\s+|)\w+(\s+|)(\*+|)(\s+|)\((\s+|)\*(\s+|)\w+(\s+|)\)(\s+|)\(((\s+|)(\bunsigned\b|\bsigned\b|\bstruct\b|)(\s|)+\w+(\s+|)(\*+|)(\s+|)\w+(\s+|)(,|))+\);",
+    flags=0 | 0
 )
 re_C_typedef_struct = re.compile(
     r"^(typedef\s+struct\s+\w+\s+)\{(((\s+|)(const|)(\s+|)(signed|unsigned|struct|)(\s+|)\w+(\s+|)((\*|\s)+|)\s+\w+(\s+|)(\[\d+\]|)+\;)+(\s+|))\}((\s+)(\*+|)(\s+|)\w+(\s+|)(\,|))+\;",
@@ -151,9 +152,14 @@ def generate_vulkan_pxd(vulkan_header: Path, dest: Path):
                 if define_name_cut in define_names or not define_name_cut.startswith("VK"):
                     continue
                 define_names.add(define_name_cut)
+                typ = ""
                 try:
-                    if define_name[col+1] == "\"":
-                        typ = "char*"
+                    i = 0
+                    while col+i < len(define_name) and define_name[col+i] != "\"":
+                        i += 1
+                        if define_name[col+i] == "\"":
+                            typ = "char*"
+                            break
                     else:
                         raise IndexError
                 except IndexError:

@@ -13,7 +13,6 @@ import platform
 import shutil
 import sys
 import os
-import ctypes
 
 includes: List[str] = [".", np.get_include()]
 
@@ -57,10 +56,22 @@ if platform.system() == "Windows":
 else:
     raise NotImplementedError("not done for the rest of the platforms cause i dont know how (-_-).")
 
+
 extensions = [
     Extension(
         name="main",
         sources=["src/main.pyx"],
+        language=language,
+        include_dirs=includes,
+        libraries=libraries,
+        library_dirs=library_dirs,
+        define_macros=define_macros,
+        undef_macros=undef_macros,
+        extra_compile_args=extra_compile_args,
+    ),
+    Extension(
+        name="VulkanSetup",
+        sources=["src/VulkanSetup.pyx"],
         language=language,
         include_dirs=includes,
         libraries=libraries,
@@ -112,17 +123,16 @@ def build():
             raise NotImplementedError("not done for the rest of the platforms cause i dont know how to do the build above (-_-).")
 
     if consume_arg("-a"):
-        for file in Path("src").iterdir():
-            if file.suffix == ".pyx":
-                cmd = [
-                    "cython",
-                    file.__str__(),
-                    "-a",
-                    "-o",
-                    file.with_suffix('.html').__str__(),
-                ]
-                print(f"[CMD] {shlex.join(cmd)}")
-                subprocess.call(cmd)
+        for file in Path("src").glob("**/*.pyx"):
+            cmd = [
+                "cython",
+                file.__str__(),
+                "-a",
+                "-o",
+                file.with_suffix('.html').__str__(),
+            ]
+            print(f"[CMD] {shlex.join(cmd)}")
+            subprocess.call(cmd)
 
     if len(sys.argv) == 1:
         sys.argv.append("build_ext")
@@ -130,14 +140,13 @@ def build():
 
     setup(ext_modules=cythonize(extensions))
 
-    for file in Path("src").iterdir():
-        if file.suffix == ".pyx":
-            if file.with_suffix(".c").exists():
-                print(f"removing {file.with_suffix('.c')}...")
-                os.remove(file.with_suffix(".c"))
-            if file.with_suffix(".cpp").exists():
-                print(f"removing {file.with_suffix('.cpp')}...")
-                os.remove(file.with_suffix(".cpp"))
+    for file in Path("src").glob("**/*.pyx"):
+        if file.with_suffix(".c").exists():
+            print(f"removing {file.with_suffix('.c')}...")
+            os.remove(file.with_suffix(".c"))
+        if file.with_suffix(".cpp").exists():
+            print(f"removing {file.with_suffix('.cpp')}...")
+            os.remove(file.with_suffix(".cpp"))
 
     try:
         shutil.rmtree("build")

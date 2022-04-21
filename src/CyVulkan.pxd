@@ -56,13 +56,13 @@ cdef extern from "<vulkan/vulkan.h>" nogil:
     int VK_API_VERSION_1_3
     int VK_KHR_surface
     int VK_KHR_SURFACE_SPEC_VERSION
-    int VK_KHR_SURFACE_EXTENSION_NAME
+    char* VK_KHR_SURFACE_EXTENSION_NAME
     int VK_KHR_swapchain
     int VK_KHR_SWAPCHAIN_SPEC_VERSION
-    int VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    char* VK_KHR_SWAPCHAIN_EXTENSION_NAME
     int VK_KHR_display
     int VK_KHR_DISPLAY_SPEC_VERSION
-    int VK_KHR_DISPLAY_EXTENSION_NAME
+    char* VK_KHR_DISPLAY_EXTENSION_NAME
     int VK_KHR_display_swapchain
     int VK_KHR_DISPLAY_SWAPCHAIN_SPEC_VERSION
     char* VK_KHR_DISPLAY_SWAPCHAIN_EXTENSION_NAME
@@ -74,7 +74,7 @@ cdef extern from "<vulkan/vulkan.h>" nogil:
     char* VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
     int VK_KHR_multiview
     int VK_KHR_MULTIVIEW_SPEC_VERSION
-    int VK_KHR_MULTIVIEW_EXTENSION_NAME
+    char* VK_KHR_MULTIVIEW_EXTENSION_NAME
     int VK_KHR_get_physical_device_properties2
     int VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_SPEC_VERSION
     char* VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
@@ -236,7 +236,7 @@ cdef extern from "<vulkan/vulkan.h>" nogil:
     char* VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME
     int VK_KHR_spirv_1_4
     int VK_KHR_SPIRV_1_4_SPEC_VERSION
-    int VK_KHR_SPIRV_1_4_EXTENSION_NAME
+    char* VK_KHR_SPIRV_1_4_EXTENSION_NAME
     int VK_KHR_surface_protected_capabilities
     int VK_KHR_SURFACE_PROTECTED_CAPABILITIES_SPEC_VERSION
     char* VK_KHR_SURFACE_PROTECTED_CAPABILITIES_EXTENSION_NAME
@@ -269,7 +269,7 @@ cdef extern from "<vulkan/vulkan.h>" nogil:
     char* VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME
     int VK_KHR_present_id
     int VK_KHR_PRESENT_ID_SPEC_VERSION
-    int VK_KHR_PRESENT_ID_EXTENSION_NAME
+    char* VK_KHR_PRESENT_ID_EXTENSION_NAME
     int VK_KHR_synchronization2
     int VK_KHR_SYNCHRONIZATION_2_SPEC_VERSION
     char* VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME
@@ -296,7 +296,7 @@ cdef extern from "<vulkan/vulkan.h>" nogil:
     char* VK_EXT_DEBUG_REPORT_EXTENSION_NAME
     int VK_NV_glsl_shader
     int VK_NV_GLSL_SHADER_SPEC_VERSION
-    int VK_NV_GLSL_SHADER_EXTENSION_NAME
+    char* VK_NV_GLSL_SHADER_EXTENSION_NAME
     int VK_EXT_depth_range_unrestricted
     int VK_EXT_DEPTH_RANGE_UNRESTRICTED_SPEC_VERSION
     char* VK_EXT_DEPTH_RANGE_UNRESTRICTED_EXTENSION_NAME
@@ -317,7 +317,7 @@ cdef extern from "<vulkan/vulkan.h>" nogil:
     char* VK_EXT_DEBUG_MARKER_EXTENSION_NAME
     int VK_AMD_gcn_shader
     int VK_AMD_GCN_SHADER_SPEC_VERSION
-    int VK_AMD_GCN_SHADER_EXTENSION_NAME
+    char* VK_AMD_GCN_SHADER_EXTENSION_NAME
     int VK_NV_dedicated_allocation
     int VK_NV_DEDICATED_ALLOCATION_SPEC_VERSION
     char* VK_NV_DEDICATED_ALLOCATION_EXTENSION_NAME
@@ -494,7 +494,7 @@ cdef extern from "<vulkan/vulkan.h>" nogil:
     char* VK_NV_SHADING_RATE_IMAGE_EXTENSION_NAME
     int VK_NV_ray_tracing
     int VK_NV_RAY_TRACING_SPEC_VERSION
-    int VK_NV_RAY_TRACING_EXTENSION_NAME
+    char* VK_NV_RAY_TRACING_EXTENSION_NAME
     int VK_SHADER_UNUSED_KHR
     int VK_SHADER_UNUSED_NV
     int VK_NV_representative_fragment_test
@@ -541,7 +541,7 @@ cdef extern from "<vulkan/vulkan.h>" nogil:
     char* VK_NV_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME
     int VK_NV_mesh_shader
     int VK_NV_MESH_SHADER_SPEC_VERSION
-    int VK_NV_MESH_SHADER_EXTENSION_NAME
+    char* VK_NV_MESH_SHADER_EXTENSION_NAME
     int VK_NV_fragment_shader_barycentric
     int VK_NV_FRAGMENT_SHADER_BARYCENTRIC_SPEC_VERSION
     char* VK_NV_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME
@@ -760,7 +760,7 @@ cdef extern from "<vulkan/vulkan.h>" nogil:
     char* VK_EXT_IMAGE_VIEW_MIN_LOD_EXTENSION_NAME
     int VK_EXT_multi_draw
     int VK_EXT_MULTI_DRAW_SPEC_VERSION
-    int VK_EXT_MULTI_DRAW_EXTENSION_NAME
+    char* VK_EXT_MULTI_DRAW_EXTENSION_NAME
     int VK_EXT_load_store_op_none
     int VK_EXT_LOAD_STORE_OP_NONE_SPEC_VERSION
     char* VK_EXT_LOAD_STORE_OP_NONE_EXTENSION_NAME
@@ -787,7 +787,7 @@ cdef extern from "<vulkan/vulkan.h>" nogil:
     char* VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME
     int VK_KHR_ray_query
     int VK_KHR_RAY_QUERY_SPEC_VERSION
-    int VK_KHR_RAY_QUERY_EXTENSION_NAME
+    char* VK_KHR_RAY_QUERY_EXTENSION_NAME
     ctypedef int va_list;
     ctypedef struct Display:
         pass

@@ -1,7 +1,7 @@
 #cython: language_level=3
 
-include "VulkanSetup.pyx"
-include "PhysicalDevice.pyx"
+from VulkanSetup cimport *
+from VulkanSetup import *
 
 # C libraries
 from CyGlfw cimport *
@@ -23,6 +23,7 @@ cdef bint enable_validation_layers = 1
 
 cdef vector[char*] validation_layers = [b"VK_LAYER_KHRONOS_validation"]
 cdef vector[char*] additional_extensions = [b"VK_KHR_win32_surface"]
+cdef vector[char*] device_extensions = [VK_KHR_SWAPCHAIN_EXTENSION_NAME]
 
 
 # TODO: not cross platform as in linux __stdcall isn't used in vulkan
@@ -45,20 +46,8 @@ cdef GLFWwindow* create_window(int width, int height, char* windowName):
     return glfwCreateWindow(width, height, windowName, NULL, NULL)
 
 
-cdef struct VulkanHandle:
-    VkInstance instance
-    VkDebugUtilsMessengerEXT debug_messenger
-    VkSurfaceKHR surface
-
-    VkPhysicalDevice physical_device
-    VkDevice device
-
-    VkQueue graphics_queue
-    VkQueue present_queue
-
-
 cdef void cleanupVulkanHandle(VulkanHandle& handle):
-    if enable_validation_layers:
+    if handle.enable_validation_layers:
         DestroyDebugUtilsMessengerEXT(handle.instance, handle.debug_messenger, NULL)
 
     vkDestroySurfaceKHR(handle.instance, handle.surface, NULL)
@@ -68,14 +57,20 @@ cdef void cleanupVulkanHandle(VulkanHandle& handle):
 
 cdef void run():
     cdef GLFWwindow* window = create_window(WIDTH, HEIGHT, "Vulkan App")
-    cdef VulkanHandle handle
-    memset(&handle, 0, sizeof(handle))
+    cdef VulkanHandle handle = ZeroInit[VulkanHandle]()
 
-    handle.instance = create_instance("Vulkan App", &additional_extensions, &validation_layers, <PFN_vkDebugUtilsMessengerCallbackEXT> debugCallback)
-    setupDebugMessenger(enable_validation_layers, &handle.instance, &handle.debug_messenger, <PFN_vkDebugUtilsMessengerCallbackEXT> debugCallback)
-    create_surface(&handle.instance, window, &handle.surface)
-    handle.physical_device = pick_physical_device(&handle.instance, &handle.surface)
-    handle.device = create_logical_device(&handle.physical_device, &handle.surface, &handle.graphics_queue, &handle.present_queue)
+    handle.enable_validation_layers = enable_validation_layers
+    handle.validation_layers = validation_layers
+    handle.additional_extensions = additional_extensions
+    handle.device_extensions = device_extensions
+    handle.debug_callback = <PFN_vkDebugUtilsMessengerCallbackEXT> debugCallback
+
+    initialize_instance("Vulkan App", handle)
+
+    setupDebugMessenger(handle)
+    create_surface(handle, window)
+    handle.physical_device = pick_physical_device(handle)
+    handle.device = create_logical_device(handle)
 
     while not glfwWindowShouldClose(window):
         glfwPollEvents()
