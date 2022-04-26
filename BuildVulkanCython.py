@@ -100,7 +100,7 @@ def build():
     run = consume_arg("-r")
 
     if consume_arg("-h"):
-        print("Build CyOpenGL library subcommands:")
+        print("Build Cython/C++ Vulkan subcommands:")
         print("    -a, it gives the annotations of the cython file and then builds the library")
         print("    -CyDep, it makes all of the pxd files from C headers")
         print("    -r, it runs the generated .pyd file")
@@ -126,6 +126,7 @@ def build():
             raise NotImplementedError("not done for the rest of the platforms cause i dont know how to do the build above (-_-).")
 
     if consume_arg("-cs"):
+        # to ensure that glslc_path is defined
         glslc_path
         commands = []
         for file in (Path("src") / "shaders").iterdir():
