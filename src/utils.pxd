@@ -16,8 +16,6 @@ from libcpp.vector cimport vector
 # CPython
 from cpython.object cimport PyObject
 
-from optional cimport optional
-
 
 cdef extern from * nogil:
     """

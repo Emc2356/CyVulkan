@@ -7,16 +7,7 @@ import re
 
 
 re_C_comments = re.compile(r"(\"[^\"]*\"(?!\\))|(//[^\n]*$|/(?!\\)\*[\s\S]*?\*(?!\\)/)", flags=re.DOTALL)
-re_two_lf = re.compile("\n\n")
 re_three_lf = re.compile("\n\n\n")
-re_C_typedef_function_pointer = re.compile(
-    r"^typedef\s+(\bunsigned\b|\bsigned\b|\bstruct\b|)(\s+|)\w+(\s+|)(\*+|)(\s+|)\((\s+|)\*(\s+|)\w+(\s+|)\)(\s+|)\(((\s+|)(\bunsigned\b|\bsigned\b|\bstruct\b|)(\s|)+\w+(\s+|)(\*+|)(\s+|)\w+(\s+|)(,|))+\);",
-    flags=0 | 0
-)
-re_C_typedef_struct = re.compile(
-    r"^(typedef\s+struct\s+\w+\s+)\{(((\s+|)(const|)(\s+|)(signed|unsigned|struct|)(\s+|)\w+(\s+|)((\*|\s)+|)\s+\w+(\s+|)(\[\d+\]|)+\;)+(\s+|))\}((\s+)(\*+|)(\s+|)\w+(\s+|)(\,|))+\;",
-    flags=re.MULTILINE | 0,
-)
 re_C_define_int = re.compile(r"(#define)\s+(?P<name>\w+)(\s*(?P<value>(0x)?\d+)?)")
 re_C_undef = re.compile(r"(#define)\s+(?P<name>\w+)")
 re_C_define_str = re.compile(r"""(#define)\s+(?P<name>\w+)(\s*(?P<value>".*")?)""")

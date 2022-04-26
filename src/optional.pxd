@@ -3,7 +3,7 @@
 from libc.string cimport memset, memcpy
 
 
-cdef cppclass optional[T]:
+cdef cppclass   optional[T]:
     bint m_has_value
     T m_value
 

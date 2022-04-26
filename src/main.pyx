@@ -1,7 +1,6 @@
 #cython: language_level=3
 
 from VulkanSetup cimport *
-from VulkanSetup import *
 
 # C libraries
 from CyGlfw cimport *
@@ -23,7 +22,8 @@ cdef bint enable_validation_layers = 1
 
 cdef vector[char*] validation_layers = [b"VK_LAYER_KHRONOS_validation"]
 cdef vector[char*] additional_extensions = [b"VK_KHR_win32_surface"]
-cdef vector[char*] device_extensions = [VK_KHR_SWAPCHAIN_EXTENSION_NAME]
+# #define VK_KHR_SWAPCHAIN_EXTENSION_NAME VK_KHR_swapchain
+cdef vector[char*] device_extensions = [b"VK_KHR_swapchain"]
 
 
 # TODO: not cross platform as in linux __stdcall isn't used in vulkan
@@ -37,7 +37,7 @@ cdef VkBool32 __stdcall debugCallback(
     return VK_FALSE
 
 
-cdef GLFWwindow* create_window(int width, int height, char* windowName):
+cdef GLFWwindow* create_window(int width, int height, char* windowName) nogil:
     glfwInit()
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
@@ -46,16 +46,7 @@ cdef GLFWwindow* create_window(int width, int height, char* windowName):
     return glfwCreateWindow(width, height, windowName, NULL, NULL)
 
 
-cdef void cleanupVulkanHandle(VulkanHandle& handle):
-    if handle.enable_validation_layers:
-        DestroyDebugUtilsMessengerEXT(handle.instance, handle.debug_messenger, NULL)
-
-    vkDestroySurfaceKHR(handle.instance, handle.surface, NULL)
-    vkDestroyDevice(handle.device, NULL)
-    vkDestroyInstance(handle.instance, NULL)
-
-
-cdef void run():
+cdef void run() nogil:
     cdef GLFWwindow* window = create_window(WIDTH, HEIGHT, "Vulkan App")
     cdef VulkanHandle handle = ZeroInit[VulkanHandle]()
 
@@ -64,18 +55,33 @@ cdef void run():
     handle.additional_extensions = additional_extensions
     handle.device_extensions = device_extensions
     handle.debug_callback = <PFN_vkDebugUtilsMessengerCallbackEXT> debugCallback
+    handle.app_name = "Vulkan App"
 
-    initialize_instance("Vulkan App", handle)
-
-    setupDebugMessenger(handle)
+    initialize_instance(handle)
+    setup_debug_messenger(handle)
     create_surface(handle, window)
-    handle.physical_device = pick_physical_device(handle)
-    handle.device = create_logical_device(handle)
+    pick_physical_device(handle)
+    create_logical_device(handle)
+    create_swap_chain(handle, window)
+    create_image_views(handle)
+    create_render_pass(handle)
+    create_graphics_pipeline(
+        handle,
+        read_file(<CPPString> <char*> b"src/shaders/shader.frag.spv"),
+        read_file(<CPPString> <char*> b"src/shaders/shader.vert.spv"),
+    )
+    create_frame_buffers(handle)
+    create_command_pool(handle)
+    create_command_buffer(handle)
+    create_sync_objects(handle)
 
     while not glfwWindowShouldClose(window):
         glfwPollEvents()
+        draw_frame(handle, window)
 
-    cleanupVulkanHandle(handle)
+    vkDeviceWaitIdle(handle.device)
+
+    handle.destroy()
     glfwDestroyWindow(window)
     glfwTerminate()
 
