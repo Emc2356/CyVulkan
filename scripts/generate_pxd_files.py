@@ -8,7 +8,7 @@ import re
 
 re_C_comments = re.compile(r"(\"[^\"]*\"(?!\\))|(//[^\n]*$|/(?!\\)\*[\s\S]*?\*(?!\\)/)", flags=re.DOTALL)
 re_three_lf = re.compile("\n\n\n")
-re_C_define_int = re.compile(r"(#define)\s+(?P<name>\w+)(\s*(?P<value>(0x)?\d+)?)")
+re_C_define_int = re.compile(r"(#define)\s+(?P<name>\w+)(\s*(?P<value>(-)?(0x)?\d+)?)")
 re_C_undef = re.compile(r"(#define)\s+(?P<name>\w+)")
 re_C_define_str = re.compile(r"""(#define)\s+(?P<name>\w+)(\s*(?P<value>".*")?)""")
 re_C_inline_typedef_struct = re.compile(r"typedef\s+struct\s+(?P<from>\w+)\s+(?P<to>\w+);")

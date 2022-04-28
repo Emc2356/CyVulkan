@@ -37,32 +37,45 @@ cdef VkBool32 __stdcall debugCallback(
     return VK_FALSE
 
 
-cdef GLFWwindow* create_window(int width, int height, char* windowName) nogil:
+cdef GLFWwindow* create_window(int width, int height, char* windowName, GLFWframebuffersizefun frame_buffer_resize_callback, VulkanHandle* handle) nogil:
     glfwInit()
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE)
+    # glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE)
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE)
 
-    return glfwCreateWindow(width, height, windowName, NULL, NULL)
+    cdef GLFWwindow* window = glfwCreateWindow(width, height, windowName, NULL, NULL)
+
+    glfwSetWindowUserPointer(window, <void*> handle)
+    glfwSetFramebufferSizeCallback(window, frame_buffer_resize_callback)
+
+    return window
+
+
+cdef void frame_buffer_resize_callback(GLFWwindow* window, int width, int height) nogil:
+    cdef VulkanHandle* handle = <VulkanHandle*>glfwGetWindowUserPointer(window)
+    handle.frame_buffer_resized = True
 
 
 cdef void run() nogil:
-    cdef GLFWwindow* window = create_window(WIDTH, HEIGHT, "Vulkan App")
     cdef VulkanHandle handle = ZeroInit[VulkanHandle]()
+    cdef GLFWwindow* window = create_window(WIDTH, HEIGHT, "Vulkan App", <GLFWframebuffersizefun> frame_buffer_resize_callback, &handle)
 
+    handle.window = window
     handle.enable_validation_layers = enable_validation_layers
     handle.validation_layers = validation_layers
     handle.additional_extensions = additional_extensions
     handle.device_extensions = device_extensions
     handle.debug_callback = <PFN_vkDebugUtilsMessengerCallbackEXT> debugCallback
     handle.app_name = "Vulkan App"
+    handle.max_frames_in_flight = 2
 
     initialize_instance(handle)
     setup_debug_messenger(handle)
-    create_surface(handle, window)
+    create_surface(handle)
     pick_physical_device(handle)
     create_logical_device(handle)
-    create_swap_chain(handle, window)
+    create_swapchain(handle)
     create_image_views(handle)
     create_render_pass(handle)
     create_graphics_pipeline(
@@ -72,12 +85,12 @@ cdef void run() nogil:
     )
     create_frame_buffers(handle)
     create_command_pool(handle)
-    create_command_buffer(handle)
+    create_command_buffers(handle)
     create_sync_objects(handle)
 
     while not glfwWindowShouldClose(window):
         glfwPollEvents()
-        draw_frame(handle, window)
+        draw_frame(handle)
 
     vkDeviceWaitIdle(handle.device)
 

@@ -113,14 +113,13 @@ def build():
             generate_vulkan_pxd,
         )
         if platform.system() == "Windows":
-            generate_glfw_pxd(
-                Path("Dependencies/WIN/GLFW/include/GLFW/glfw3.h").absolute(),
-                Path("src/CyGlfw.pxd").absolute(),
-            )
-
             generate_vulkan_pxd(
                 Path(f"{vulkan_sdk_path}/Include/vulkan/vulkan_core.h").absolute(),
                 Path("src/CyVulkan.pxd").absolute(),
+            )
+            generate_glfw_pxd(
+                Path("Dependencies/WIN/GLFW/include/GLFW/glfw3.h").absolute(),
+                Path("src/CyGlfw.pxd").absolute(),
             )
         else:
             raise NotImplementedError("not done for the rest of the platforms cause i dont know how to do the build above (-_-).")

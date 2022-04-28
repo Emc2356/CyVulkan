@@ -28,8 +28,19 @@
     fprintf(stderr, __VA_ARGS__); \
     fputc('\n', stderr);          \
     exit(1)
+#define CWARN(...)                 \
+    fprintf(stderr, "[WARNING] "); \
+    fprintf(stderr, __VA_ARGS__);  \
+    fputc('\n', stderr);          
+
 
 typedef struct VulkanHandle {
+public:
+    // important for this to be on the top
+    GLFWwindow* window;
+
+    int max_frames_in_flight;
+
     char *app_name;
 
     bool enable_validation_layers;
@@ -62,13 +73,20 @@ typedef struct VulkanHandle {
     VkPipeline graphics_pipeline;
 
     VkCommandPool command_pool;
-    VkCommandBuffer command_buffer;
+    std::vector<VkCommandBuffer> command_buffers;
 
-    VkSemaphore image_available_semaphore;
-    VkSemaphore render_finished_semaphore;
-    VkFence in_flight_fence;
+    std::vector<VkSemaphore> image_available_semaphores;
+    std::vector<VkSemaphore> render_finished_semaphores;
+    std::vector<VkFence> in_flight_fences;
+
+    bool frame_buffer_resized = false;
 
     void destroy();
+
+    // not really meant to interface with the cython code
+    uint32_t current_frame;
+    std::vector<char> vertex_shader_code;
+    std::vector<char> fragment_shader_code;
 
 } VulkanHandle;
 
@@ -89,12 +107,14 @@ typedef struct SwapChainSupportDetails {
 
 std::vector<char> read_file(const std::string &filename);
 std::vector<char *> get_required_extensions(int enable_validation_layers);
+void recreate_swapchain(VulkanHandle& handle);
+void cleanup_swapchain(VulkanHandle& handle);
 bool check_validation_layer_support(VulkanHandle &handle);
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDebugUtilsMessengerEXT *pDebugMessenger);
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks *pAllocator);
 void initialize_instance(VulkanHandle &handle);
 void setup_debug_messenger(VulkanHandle &handle);
-void create_surface(VulkanHandle &handle, GLFWwindow *window);
+void create_surface(VulkanHandle &handle);
 QueueFamilyIndices find_queue_families(VulkanHandle &handle, VkPhysicalDevice &device);
 bool check_device_extension_support(std::vector<char *> &device_extensions, VkPhysicalDevice &device);
 bool is_device_suitable(VulkanHandle &handle, VkPhysicalDevice &device);
@@ -103,38 +123,31 @@ void create_logical_device(VulkanHandle &handle);
 SwapChainSupportDetails query_swap_chain_support(VulkanHandle &handle, VkPhysicalDevice &device);
 VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR> &availableFormats);
 VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &availablePresentModes);
-VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR &capabilities, GLFWwindow *window);
-void create_swap_chain(VulkanHandle &handle, GLFWwindow *window);
+VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR &capabilities, GLFWwindow* window);
+void create_swapchain(VulkanHandle &handle);
 void create_image_views(VulkanHandle &handle);
 VkShaderModule create_shader_module(const std::vector<char> &code);
 void create_render_pass(VulkanHandle &handle);
 void create_graphics_pipeline(VulkanHandle &handle, std::vector<char> &fragment_shader_code, std::vector<char> &vertex_shader_code);
 void create_frame_buffers(VulkanHandle &handle);
 void create_command_pool(VulkanHandle &handle);
-void create_command_buffer(VulkanHandle &handle);
+void create_command_buffers(VulkanHandle &handle);
 void record_command_buffer(VulkanHandle &handle, VkCommandBuffer command_buffer, uint32_t image_index);
-void draw_frame(VulkanHandle &handle, GLFWwindow *window);
+void draw_frame(VulkanHandle &handle);
 void create_sync_objects(VulkanHandle &handle);
 
 void VulkanHandle::destroy() {
-    vkDestroySemaphore(device, image_available_semaphore, nullptr);
-    vkDestroySemaphore(device, render_finished_semaphore, nullptr);
-    vkDestroyFence(device, in_flight_fence, nullptr);
+    cleanup_swapchain(*this);
+    for (int i = 0; i < max_frames_in_flight; i++) {
+        vkDestroySemaphore(device, image_available_semaphores[i], nullptr);
+        vkDestroySemaphore(device, render_finished_semaphores[i], nullptr);
+        vkDestroyFence(device, in_flight_fences[i], nullptr);
+    }
     vkDestroyCommandPool(device, command_pool, nullptr);
-    for (auto &frame_buffer : swapchain_frame_buffers) {
-        vkDestroyFramebuffer(device, frame_buffer, nullptr);
-    }
-    vkDestroyPipeline(device, graphics_pipeline, nullptr);
-    vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
-    vkDestroyRenderPass(device, render_pass, nullptr);
-    for (auto &image_view : swapchain_image_views) {
-        vkDestroyImageView(device, image_view, nullptr);
-    }
     if (enable_validation_layers) {
         DestroyDebugUtilsMessengerEXT(instance, debug_messenger, nullptr);
     }
 
-    vkDestroySwapchainKHR(device, swapchain, nullptr);
     vkDestroySurfaceKHR(instance, surface, nullptr);
     vkDestroyDevice(device, nullptr);
     vkDestroyInstance(instance, nullptr);
@@ -209,6 +222,41 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
     if (func != nullptr) {
         func(instance, debugMessenger, pAllocator);
     }
+}
+
+void recreate_swapchain(VulkanHandle& handle) {
+        int width = 0, height = 0;
+    glfwGetFramebufferSize(handle.window, &width, &height);
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(wihandle.ndow, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(handle.device);
+
+    cleanup_swapchain(handle);
+
+    create_swapchain(handle);
+    create_image_views(handle);
+    create_render_pass(handle);
+    create_graphics_pipeline(handle, handle.fragment_shader_code, handle.vertex_shader_code);
+    create_frame_buffers(handle);
+}
+
+void cleanup_swapchain(VulkanHandle& handle) {
+    for (size_t i = 0; i < handle.swapchain_frame_buffers.size(); i++) {
+        vkDestroyFramebuffer(handle.device, handle.swapchain_frame_buffers[i], nullptr);
+    }
+
+    vkDestroyPipeline(handle.device, handle.graphics_pipeline, nullptr);
+    vkDestroyPipelineLayout(handle.device, handle.pipeline_layout, nullptr);
+    vkDestroyRenderPass(handle.device, handle.render_pass, nullptr);
+
+    for (size_t i = 0; i < handle.swapchain_image_views.size(); i++) {
+        vkDestroyImageView(handle.device, handle.swapchain_image_views[i], nullptr);
+    }
+
+    vkDestroySwapchainKHR(handle.device, handle.swapchain, nullptr);
 }
 
 void initialize_instance(VulkanHandle &handle) {
@@ -289,15 +337,15 @@ void setup_debug_messenger(VulkanHandle &handle) {
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo.pfnUserCallback = handle.debug_callback 
+    createInfo.pfnUserCallback = handle.debug_callback;
 
     if (CreateDebugUtilsMessengerEXT(handle.instance, &createInfo, nullptr, &handle.debug_messenger) != VK_SUCCESS) {
         CERROR("failed to set up debug messenger!");
     }
 }
 
-void create_surface(VulkanHandle &handle, GLFWwindow *window) {
-    if (glfwCreateWindowSurface(handle.instance, window, nullptr, &handle.surface) != VK_SUCCESS) {
+void create_surface(VulkanHandle &handle) {
+    if (glfwCreateWindowSurface(handle.instance, handle.window, nullptr, &handle.surface) != VK_SUCCESS) {
         CERROR("failed to create window surface!");
     }
 }
@@ -476,7 +524,7 @@ VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &a
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR &capabilities, GLFWwindow *window) {
+VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR &capabilities, GLFWwindow* window) {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         return capabilities.currentExtent;
     }
@@ -496,12 +544,12 @@ VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR &capabilities, GLFW
     }
 }
 
-void create_swap_chain(VulkanHandle &handle, GLFWwindow *window) {
+void create_swapchain(VulkanHandle &handle) {
     SwapChainSupportDetails swap_chain_support = query_swap_chain_support(handle, handle.physical_device);
 
     VkSurfaceFormatKHR surface_format = choose_swap_surface_format(swap_chain_support.formats);
     VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.present_modes);
-    VkExtent2D extent = choose_swap_extent(swap_chain_support.capabilities, window);
+    VkExtent2D extent = choose_swap_extent(swap_chain_support.capabilities, handle.window);
 
     uint32_t image_count = swap_chain_support.capabilities.minImageCount + 1;
 
@@ -636,6 +684,8 @@ void create_render_pass(VulkanHandle &handle) {
 void create_graphics_pipeline(VulkanHandle &handle, std::vector<char> &fragment_shader_code, std::vector<char> &vertex_shader_code) {
     std::vector<char> &vert_shader_code = vertex_shader_code;
     std::vector<char> &frag_shader_code = fragment_shader_code;
+    handle.vertex_shader_code = vertex_shader_code;
+    handle.fragment_shader_code = fragment_shader_code;
 
     VkShaderModule shader_module_vert = create_shader_module(handle, vert_shader_code);
     VkShaderModule shader_module_frag = create_shader_module(handle, frag_shader_code);
@@ -845,19 +895,24 @@ void record_command_buffer(VulkanHandle &handle, VkCommandBuffer command_buffer,
     }
 }
 
-void create_command_buffer(VulkanHandle &handle) {
+void create_command_buffers(VulkanHandle &handle) {
+    handle.command_buffers.resize(handle.max_frames_in_flight);
+
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool = handle.command_pool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = 1;
+    allocInfo.commandBufferCount = (uint32_t) handle.command_buffers.size();
 
-    if (vkAllocateCommandBuffers(handle.device, &allocInfo, &handle.command_buffer) != VK_SUCCESS) {
+    if (vkAllocateCommandBuffers(handle.device, &allocInfo, handle.command_buffers.data()) != VK_SUCCESS) {
         CERROR("failed to allocate command buffers!");
     }
 }
 
 void create_sync_objects(VulkanHandle &handle) {
+    handle.image_available_semaphores.resize(handle.max_frames_in_flight);
+    handle.render_finished_semaphores.resize(handle.max_frames_in_flight);
+    handle.in_flight_fences.resize(handle.max_frames_in_flight);
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -865,40 +920,52 @@ void create_sync_objects(VulkanHandle &handle) {
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    if (vkCreateSemaphore(handle.device, &semaphoreInfo, nullptr, &handle.image_available_semaphore) != VK_SUCCESS ||
-        vkCreateSemaphore(handle.device, &semaphoreInfo, nullptr, &handle.render_finished_semaphore) != VK_SUCCESS ||
-        vkCreateFence(handle.device, &fenceInfo, nullptr, &handle.in_flight_fence) != VK_SUCCESS) {
-        CERROR("failed to create semaphores!");
+    for (int i = 0; i < handle.max_frames_in_flight; i++) {
+        if (vkCreateSemaphore(handle.device, &semaphoreInfo, nullptr, &handle.image_available_semaphores[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(handle.device, &semaphoreInfo, nullptr, &handle.render_finished_semaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(handle.device, &fenceInfo, nullptr, &handle.in_flight_fences[i]) != VK_SUCCESS) {
+            CERROR("failed to create semaphores!");
+        }
     }
 }
 
-void draw_frame(VulkanHandle &handle, GLFWwindow *window) {
-    vkWaitForFences(handle.device, 1, &handle.in_flight_fence, VK_TRUE, UINT64_MAX);
-    vkResetFences(handle.device, 1, &handle.in_flight_fence);
+void draw_frame(VulkanHandle &handle) {
+    vkWaitForFences(handle.device, 1, &handle.in_flight_fences[handle.current_frame], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(handle.device, handle.swapchain, UINT64_MAX, handle.image_available_semaphore, VK_NULL_HANDLE, &imageIndex);
+    VkResult result = vkAcquireNextImageKHR(handle.device, handle.swapchain, UINT64_MAX, handle.image_available_semaphores[handle.current_frame], VK_NULL_HANDLE, &imageIndex);
 
-    vkResetCommandBuffer(handle.command_buffer, /*VkCommandBufferResetFlagBits*/ 0);
-    record_command_buffer(handle, handle.command_buffer, imageIndex);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || handle.frame_buffer_resized) {
+        handle.frame_buffer_resized = false;
+        recreate_swapchain(handle);
+        return;
+    } else if (result != VK_SUCCESS) {
+        CERROR("failed to acquire swap chain image!");
+    }
+
+    // Only reset the fence if we are submitting work
+    vkResetFences(handle.device, 1, &handle.in_flight_fences[handle.current_frame]);
+
+    vkResetCommandBuffer(handle.command_buffers[handle.current_frame], /*VkCommandBufferResetFlagBits*/ 0);
+    record_command_buffer(handle, handle.command_buffers[handle.current_frame], imageIndex);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = {handle.image_available_semaphore};
+    VkSemaphore waitSemaphores[] = {handle.image_available_semaphores[handle.current_frame]};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
 
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &handle.command_buffer;
+    submitInfo.pCommandBuffers = &handle.command_buffers[handle.current_frame];
 
-    VkSemaphore signalSemaphores[] = {handle.render_finished_semaphore};
+    VkSemaphore signalSemaphores[] = {handle.render_finished_semaphores[handle.current_frame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    if (vkQueueSubmit(handle.graphics_queue, 1, &submitInfo, handle.in_flight_fence) != VK_SUCCESS) {
+    if (vkQueueSubmit(handle.graphics_queue, 1, &submitInfo, handle.in_flight_fences[handle.current_frame]) != VK_SUCCESS) {
         throw std::runtime_error("failed to submit draw command buffer!");
     }
 
@@ -915,6 +982,8 @@ void draw_frame(VulkanHandle &handle, GLFWwindow *window) {
     presentInfo.pImageIndices = &imageIndex;
 
     vkQueuePresentKHR(handle.present_queue, &presentInfo);
+
+    handle.current_frame = (handle.current_frame + 1) % handle.max_frames_in_flight;
 }
 
 #endif // _VULKAN_SETUP_H_

@@ -16,6 +16,10 @@ from libcpp.string cimport string as CPPString
 
 cdef extern from "VulkanSetup.hpp" nogil:
     cdef cppclass VulkanHandle:
+        GLFWwindow* window
+
+        int max_frames_in_flight
+
         char* app_name
 
         bint enable_validation_layers
@@ -48,11 +52,13 @@ cdef extern from "VulkanSetup.hpp" nogil:
         VkPipeline graphics_pipeline
 
         VkCommandPool command_pool
-        VkCommandBuffer command_buffer
+        vector[VkCommandBuffer] command_buffers
 
-        VkSemaphore image_available_semaphore;
-        VkSemaphore render_finished_semaphore;
-        VkFence in_flight_fence;
+        vector[VkSemaphore] image_available_semaphores
+        vector[VkSemaphore] render_finished_semaphores
+        vector[VkFence] in_flight_fences
+
+        bint frame_buffer_resized
 
         void destroy()
 
@@ -60,15 +66,15 @@ cdef extern from "VulkanSetup.hpp" nogil:
     cdef void cleanupVulkanHandle(VulkanHandle& handle)
     cdef void initialize_instance(VulkanHandle& handle)
     cdef void setup_debug_messenger(VulkanHandle& handle)
-    cdef void create_surface(VulkanHandle& handle, GLFWwindow* window)
+    cdef void create_surface(VulkanHandle& handle)
     cdef void pick_physical_device(VulkanHandle& handle)
     cdef void create_logical_device(VulkanHandle& handle)
-    cdef void create_swap_chain(VulkanHandle& handle, GLFWwindow* window)
+    cdef void create_swapchain(VulkanHandle& handle)
     cdef void create_image_views(VulkanHandle& handle)
     cdef void create_graphics_pipeline(VulkanHandle& handle, vector[char]& fragment_shader_code, vector[char]& vertex_shader_code)
     cdef void create_render_pass(VulkanHandle& handle)
     cdef void create_frame_buffers(VulkanHandle& handle)
     cdef void create_command_pool(VulkanHandle& handle)
-    cdef void create_command_buffer(VulkanHandle& handle)
-    cdef void draw_frame(VulkanHandle& handle, GLFWwindow* window)
+    cdef void create_command_buffers(VulkanHandle& handle)
+    cdef void draw_frame(VulkanHandle& handle)
     cdef void create_sync_objects(VulkanHandle& handle)
